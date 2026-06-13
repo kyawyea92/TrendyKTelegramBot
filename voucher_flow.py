@@ -523,7 +523,8 @@ async def generate_and_send_pdf(update: Update, context: ContextTypes.DEFAULT_TY
         safe_name = "Customer"
 
     pdf_filename = f"voucher_{chat_id}_{int(datetime.now().timestamp())}.pdf"
-    pdf_path = os.path.join("/Users/kyawyelwin/kot-pjs/TrendyKTelegramBot", pdf_filename)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    pdf_path = os.path.join(current_dir, pdf_filename)
     
     try:
         generate_voucher_pdf(customer, items, payment, pdf_path, tracking_number)

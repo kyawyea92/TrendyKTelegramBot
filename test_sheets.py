@@ -3,11 +3,12 @@ import sys
 from dotenv import load_dotenv
 
 # Add the bot directory to path so we can import sheets_service
-sys.path.append("/Users/kyawyelwin/kot-pjs/TrendyKTelegramBot")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
 import sheets_service
 
 def run_test():
-    load_dotenv("/Users/kyawyelwin/kot-pjs/TrendyKTelegramBot/.env")
+    load_dotenv(os.path.join(current_dir, ".env"))
     print("Testing connection to Customer Spreadsheet...")
     
     try:
