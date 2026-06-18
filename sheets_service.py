@@ -1,9 +1,12 @@
 import os
+import logging
 import gspread
 from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -29,6 +32,11 @@ def _get_sheet():
             "Check GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY and GOOGLE_SHEET_ID in .env"
         )
 
+    # Clean up strings if wrapped in quotes on platforms like Railway
+    email = email.strip().strip('"\'')
+    raw_key = raw_key.strip().strip('"\'')
+    sheet_id = sheet_id.strip().strip('"\'')
+
     # Handle escaped newlines stored in .env
     private_key = raw_key.replace("\\n", "\n")
 
@@ -47,7 +55,7 @@ def _get_sheet():
     client = gspread.authorize(creds)
     spreadsheet = client.open_by_key(sheet_id)
     _sheet = spreadsheet.sheet1  # First worksheet
-    print(f"✅ Connected to Google Sheet: {spreadsheet.title}")
+    logger.info(f"✅ Connected to Google Sheet: {spreadsheet.title}")
     return _sheet
 
 
@@ -85,7 +93,7 @@ def get_all_products() -> list[dict]:
             )
         return products
     except Exception as exc:
-        print(f"❌ Error fetching products: {exc}")
+        logger.error(f"❌ Error fetching products: {exc}", exc_info=True)
         return []
 
 
@@ -130,6 +138,11 @@ def _get_customer_spreadsheet():
             "Check GOOGLE_CUSTOMER_SHEET_ID in .env"
         )
 
+    # Clean up strings if wrapped in quotes on platforms like Railway
+    email = email.strip().strip('"\'')
+    raw_key = raw_key.strip().strip('"\'')
+    sheet_id = sheet_id.strip().strip('"\'')
+
     private_key = raw_key.replace("\\n", "\n")
 
     creds = Credentials.from_service_account_info(
@@ -156,8 +169,7 @@ def save_order_record(order_id: str, date_str: str, customer: dict, items: list,
         worksheets = spreadsheet.worksheets()
         
         if len(worksheets) < 2:
-            print("❌ The customer spreadsheet needs at least 2 sheets (tabs).")
-            return
+            raise RuntimeError("The customer spreadsheet needs at least 2 sheets (tabs).")
             
         customer_sheet = worksheets[0]
         items_sheet = worksheets[1]
@@ -168,7 +180,7 @@ def save_order_record(order_id: str, date_str: str, customer: dict, items: list,
             try:
                 customer_sheet.update_cell(1, 12, "Tracking Number")
             except Exception as e:
-                print(f"⚠️ Could not add Tracking Number header: {e}")
+                logger.warning(f"⚠️ Could not add Tracking Number header: {e}")
         
         # Save to Customer Info
         customer_row = [
@@ -199,9 +211,10 @@ def save_order_record(order_id: str, date_str: str, customer: dict, items: list,
             ])
         items_sheet.append_rows(item_rows)
         
-        print(f"✅ Successfully saved order {order_id} to Google Sheets.")
+        logger.info(f"✅ Successfully saved order {order_id} to Google Sheets.")
     except Exception as exc:
-        print(f"❌ Error saving order to Google Sheets: {exc}")
+        logger.error(f"❌ Error saving order to Google Sheets: {exc}", exc_info=True)
+        raise exc
 
 
 def reduce_stock(items: list):
@@ -217,7 +230,7 @@ def reduce_stock(items: list):
                 avail_col = i + 1
         
         if avail_col is None:
-            print("❌ Could not find 'Available Count' column in stock sheet.")
+            logger.error("❌ Could not find 'Available Count' column in stock sheet.")
             return
         
         for item in items:
@@ -240,10 +253,11 @@ def reduce_stock(items: list):
                     
                     new_count = max(0, current_count - ordered_count)
                     sheet.update_cell(cell_row, avail_col, new_count)
-                    print(f"📦 Stock updated: {item.get('name', product_id)} → {current_count} → {new_count}")
+                    logger.info(f"📦 Stock updated: {item.get('name', product_id)} → {current_count} → {new_count}")
                 except (ValueError, IndexError) as e:
-                    print(f"⚠️ Could not parse row index from id '{product_id}': {e}")
+                    logger.warning(f"⚠️ Could not parse row index from id '{product_id}': {e}")
         
-        print("✅ Stock reduction complete.")
+        logger.info("✅ Stock reduction complete.")
     except Exception as exc:
-        print(f"❌ Error reducing stock: {exc}")
+        logger.error(f"❌ Error reducing stock: {exc}", exc_info=True)
+        raise exc

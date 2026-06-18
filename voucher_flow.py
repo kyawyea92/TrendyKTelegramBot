@@ -512,10 +512,33 @@ async def generate_and_send_pdf(update: Update, context: ContextTypes.DEFAULT_TY
     tracking_number = datetime.now().strftime("%y%m%d%H%M%S")
     
     # Save to Google Sheets
-    sheet.save_order_record(order_id, date_str, customer, items, payment, tracking_number)
+    sheets_success = True
+    try:
+        sheet.save_order_record(order_id, date_str, customer, items, payment, tracking_number)
+    except Exception as exc:
+        sheets_success = False
+        logger.error(f"Failed to save order to Google Sheets: {exc}")
+        await msg.edit_text(
+            f"❌ <b>Google Sheets တွင် အချက်အလက် သိမ်းဆည်းရန် ပျက်ကွက်ခဲ့ပါသည်။</b>\n\n"
+            f"<b>Error Details:</b>\n"
+            f"<code>{_escape(str(exc))}</code>\n\n"
+            f"💡 <i>Railway env variables တွင် GOOGLE_CUSTOMER_SHEET_ID ရှိမရှိ နှင့် "
+            f"ယင်း Sheet အား Service Account ({_escape(os.getenv('GOOGLE_SERVICE_ACCOUNT_EMAIL', ''))}) "
+            f"သို့ Editor Permission (ပြောင်းလဲခွင့်) ပေးထားခြင်း ရှိမရှိ စစ်ဆေးပါ။</i>",
+            parse_mode="HTML"
+        )
     
-    # Reduce stock in product sheet
-    sheet.reduce_stock(items)
+    if sheets_success:
+        # Reduce stock in product sheet
+        try:
+            sheet.reduce_stock(items)
+        except Exception as stock_exc:
+            logger.error(f"Failed to reduce stock: {stock_exc}")
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"⚠️ <b>ပစ္စည်းစာရင်း (Stock) လျှော့ချရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။</b>\n<code>{_escape(str(stock_exc))}</code>",
+                parse_mode="HTML"
+            )
     
     import re
     safe_name = re.sub(r'[\\/*?:"<>|]', "", customer.get("name", "Customer")).strip()
@@ -542,9 +565,22 @@ async def generate_and_send_pdf(update: Update, context: ContextTypes.DEFAULT_TY
         if os.path.exists(pdf_path):
             os.remove(pdf_path)
             
+        if not sheets_success:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="⚠️ <b>ဘောက်ချာ PDF ကို ဖန်တီးပေးပြီးဖြစ်သော်လည်း Google Sheets တွင် အချက်အလက်များ မသိမ်းဆည်းနိုင်ခဲ့ပါ။</b>",
+                parse_mode="HTML"
+            )
+            
     except Exception as exc:
         logger.error(f"Error generating or sending PDF: {exc}")
-        await msg.edit_text("❌ ဘောက်ချာ PDF ဖန်တီးရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။")
+        if sheets_success:
+            await msg.edit_text("❌ ဘောက်ချာ PDF ဖန်တီးရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။")
+        else:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="❌ ဘောက်ချာ PDF ဖန်တီးရာတွင် အမှားအယွင်းရှိခဲ့ပါသည်။"
+            )
         
     # Return to Main Menu options
     from bot import main_menu_kb
