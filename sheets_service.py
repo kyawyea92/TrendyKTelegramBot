@@ -37,8 +37,8 @@ def _get_sheet():
     raw_key = raw_key.strip().strip('"\'')
     sheet_id = sheet_id.strip().strip('"\'')
 
-    # Handle escaped newlines stored in .env
-    private_key = raw_key.replace("\\n", "\n")
+    # Handle escaped newlines stored in .env (including double escaped \\n from platforms like Railway)
+    private_key = raw_key.replace("\\\\n", "\n").replace("\\n", "\n")
 
     creds = Credentials.from_service_account_info(
         {
@@ -143,7 +143,8 @@ def _get_customer_spreadsheet():
     raw_key = raw_key.strip().strip('"\'')
     sheet_id = sheet_id.strip().strip('"\'')
 
-    private_key = raw_key.replace("\\n", "\n")
+    # Handle escaped newlines stored in .env (including double escaped \\n from platforms like Railway)
+    private_key = raw_key.replace("\\\\n", "\n").replace("\\n", "\n")
 
     creds = Credentials.from_service_account_info(
         {
