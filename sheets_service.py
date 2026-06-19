@@ -40,10 +40,15 @@ def _get_sheet():
     # Handle escaped newlines stored in .env (including double escaped \\n from platforms like Railway)
     private_key = raw_key.replace("\\\\n", "\n").replace("\\n", "\n")
 
+    # Derive project_id from service account email (user@project-id.iam.gserviceaccount.com)
+    project_id = os.getenv("GOOGLE_PROJECT_ID", "")
+    if not project_id and "@" in email and ".iam.gserviceaccount.com" in email:
+        project_id = email.split("@")[1].replace(".iam.gserviceaccount.com", "")
+
     creds = Credentials.from_service_account_info(
         {
             "type": "service_account",
-            "project_id": "alineain-menu-telegram-bot",
+            "project_id": project_id,
             "private_key_id": "key",
             "private_key": private_key,
             "client_email": email,
@@ -146,10 +151,15 @@ def _get_customer_spreadsheet():
     # Handle escaped newlines stored in .env (including double escaped \\n from platforms like Railway)
     private_key = raw_key.replace("\\\\n", "\n").replace("\\n", "\n")
 
+    # Derive project_id from service account email (user@project-id.iam.gserviceaccount.com)
+    project_id = os.getenv("GOOGLE_PROJECT_ID", "")
+    if not project_id and "@" in email and ".iam.gserviceaccount.com" in email:
+        project_id = email.split("@")[1].replace(".iam.gserviceaccount.com", "")
+
     creds = Credentials.from_service_account_info(
         {
             "type": "service_account",
-            "project_id": "alineain-menu-telegram-bot",
+            "project_id": project_id,
             "private_key_id": "key",
             "private_key": private_key,
             "client_email": email,
